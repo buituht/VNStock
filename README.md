@@ -7,7 +7,7 @@ pip install streamlit pandas numpy plotly scikit-learn tensorflow yfinance
 
 Lệnh này sẽ tải và cài đặt:
 
-**streamlit**: Nền tảng để xây dựng ứng dụng web.
+**streamlit**: Nền tảng để xây dựng ứng dụng web. /n
 **pandas, numpy**: Dành cho xử lý dữ liệu.
 **plotly**: Dành cho việc vẽ biểu đồ.
 **scikit-learn, tensorflow**: Dành cho mô hình học máy (LSTM).
