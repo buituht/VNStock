@@ -13,7 +13,7 @@ import yfinance as yf  # Thư viện dữ liệu tài chính số 1 thế giới
 
 # --- Cấu hình giao diện Web ---
 st.set_page_config(page_title="Dự đoán Chứng khoán VN", layout="wide")
-st.title("📈 Ứng dụng Dự đoán Chứng khoán Việt Nam (Mô hình LSTM)")
+st.title("📈 Ứng dụng Dự đoán Chứng khoán Việt Nam (Mô hình LSTM (Long Short-Term Memory))")
 st.write("Sử dụng thư viện Yahoo Finance")
 
 # --- Sidebar (Thanh công cụ bên trái) ---
@@ -22,6 +22,7 @@ ticker = st.sidebar.text_input("Mã cổ phiếu (VD: VCB, FPT, HPG):", "VCB").u
 lookback_days = 50
 epochs = st.sidebar.slider("Epochs (Số vòng huấn luyện):", 5, 50, 10)
 years_to_fetch = st.sidebar.slider("Số năm dữ liệu lịch sử:", 1, 5, 2)
+n_future_days = st.sidebar.slider("Số phiên dự đoán tiếp theo:", 1, 30, 10)
 
 @st.cache_data
 def get_stock_data_yfinance(ticker, years=2):
@@ -122,16 +123,49 @@ if st.sidebar.button("Bắt đầu lấy dữ liệu & Huấn luyện"):
         fig.add_trace(go.Scatter(x=df['Date'][:train_len], y=df['Close'][:train_len], mode='lines', name='Dữ liệu Huấn luyện (Train)'))
         fig.add_trace(go.Scatter(x=valid['Date'], y=valid['Close'], mode='lines', name='Giá Thực tế (Test)', line=dict(color='blue')))
         fig.add_trace(go.Scatter(x=valid['Date'], y=valid['Predictions'], mode='lines', name='Giá Dự đoán (Predict)', line=dict(color='red')))
-        fig.update_layout(title=f'Biểu đồ biến động giá cổ phiếu {ticker}', xaxis_title='Thời gian', yaxis_title='Giá Đóng cửa (VND)')
+        
+        st.subheader(f"Bảng dự đoán {n_future_days} phiên giao dịch tiếp theo")
+
+        # Lấy lookback_days ngày cuối cùng từ dữ liệu đã scale
+        last_sequence = scaled_data[-lookback_days:]
+        future_predictions_scaled = []
+        current_batch = last_sequence.reshape(1, lookback_days, 1)
+
+        # Vòng lặp dự đoán
+        with st.spinner(f"Đang dự đoán {n_future_days} phiên tiếp theo..."):
+            for i in range(n_future_days):
+                # Dự đoán 1 ngày tiếp theo
+                next_prediction_scaled = model.predict(current_batch, verbose=0)[0]
+                
+                # Lưu lại kết quả dự đoán
+                future_predictions_scaled.append(next_prediction_scaled)
+                
+                # Cập nhật lại batch đầu vào: bỏ ngày cũ nhất, thêm ngày mới dự đoán
+                current_batch = np.append(current_batch[:, 1:, :], [[next_prediction_scaled]], axis=1)
+
+        # Chuyển đổi các giá trị dự đoán về thang đo ban đầu
+        future_predictions = scaler.inverse_transform(future_predictions_scaled)
+
+        # Tạo các ngày trong tương lai (chỉ lấy ngày làm việc)
+        last_date = df['Date'].iloc[-1]
+        future_dates = pd.bdate_range(start=last_date + pd.Timedelta(days=1), periods=n_future_days)
+
+        # Tạo DataFrame cho kết quả dự đoán và hiển thị
+        df_future = pd.DataFrame(data={'Ngày': future_dates, 'Giá đóng cửa dự đoán (VND)': future_predictions.flatten()})
+        df_future['Ngày'] = df_future['Ngày'].dt.strftime('%Y-%m-%d')
+        df_future['Giá đóng cửa dự đoán (VND)'] = df_future['Giá đóng cửa dự đoán (VND)'].apply(lambda x: f"{x:,.0f}")
+        st.dataframe(df_future, use_container_width=True)
+
+        # Thêm dự đoán tương lai vào biểu đồ
+        fig.add_trace(go.Scatter(x=future_dates, y=future_predictions.flatten(), mode='lines', name=f'Dự đoán {n_future_days} ngày tới', line=dict(color='green', dash='dash')))
+        
+        # Cập nhật layout và hiển thị biểu đồ
+        fig.update_layout(title=f'Biểu đồ biến động và dự đoán giá cổ phiếu {ticker}', xaxis_title='Thời gian', yaxis_title='Giá Đóng cửa (VND)')
         st.plotly_chart(fig, use_container_width=True)
 
-        # --- DỰ ĐOÁN TƯƠNG LAI ---
-        last_50_days = scaled_data[-lookback_days:]
-        X_future = np.array([last_50_days])
-        X_future = np.reshape(X_future, (X_future.shape[0], X_future.shape[1], 1))
-        pred_future = model.predict(X_future)
-        pred_future_price = scaler.inverse_transform(pred_future)
-
-        st.info(f"🔮 **Dự đoán giá đóng cửa phiên giao dịch tiếp theo cho {ticker}: {pred_future_price[0][0]:,.0f} VND**")
+        # Hiển thị dự đoán cho ngày đầu tiên trong chuỗi
+        if n_future_days > 0:
+            first_future_price = future_predictions.flatten()[0]
+            st.info(f"🔮 **Dự đoán giá đóng cửa phiên giao dịch tiếp theo cho {ticker}: {first_future_price:,.0f} VND**")
     else:
         st.error(f"Lỗi truy xuất: {error_msg}")
