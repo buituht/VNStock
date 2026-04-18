@@ -22,5 +22,5 @@ Lệnh này sẽ tải và cài đặt:
 **Bước 2**: Chạy ứng dụng
 Trong cùng cửa sổ Terminal/Command Prompt, hãy di chuyển đến thư mục chứa tệp app.py của bạn bằng lệnh cd (change directory).
 
-Chạy chương trình
+**Chạy chương trình**:
 streamlit run app.py
