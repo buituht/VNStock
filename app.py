@@ -9,11 +9,11 @@ import plotly.graph_objects as go
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
-import yfinance as yf  # Thư viện dữ liệu tài chính số 1 thế giới
+import yfinance as yf  # Thư viện dữ liệu tài chính
 
 # --- Cấu hình giao diện Web ---
 st.set_page_config(page_title="Dự đoán Chứng khoán VN", layout="wide")
-st.title("📈 Ứng dụng Dự đoán Chứng khoán Việt Nam (Mô hình LSTM (Long Short-Term Memory))")
+st.title("Ứng dụng Dự đoán Chứng khoán Việt Nam (Mô hình LSTM (Long Short-Term Memory))")
 st.write("Sử dụng thư viện Yahoo Finance")
 
 # --- Sidebar (Thanh công cụ bên trái) ---
@@ -26,7 +26,7 @@ n_future_days = st.sidebar.slider("Số phiên dự đoán tiếp theo:", 1, 30,
 
 @st.cache_data
 def get_stock_data_yfinance(ticker, years=2):
-    """ Hàm lấy dữ liệu siêu tốc bằng Yahoo Finance """
+    """ Hàm lấy dữ liệu bằng Yahoo Finance """
     try:
         # Yahoo Finance quy định mã CK Việt Nam phải có đuôi .VN
         yf_ticker = f"{ticker}.VN"
@@ -166,6 +166,6 @@ if st.sidebar.button("Bắt đầu lấy dữ liệu & Huấn luyện"):
         # Hiển thị dự đoán cho ngày đầu tiên trong chuỗi
         if n_future_days > 0:
             first_future_price = future_predictions.flatten()[0]
-            st.info(f"🔮 **Dự đoán giá đóng cửa phiên giao dịch tiếp theo cho {ticker}: {first_future_price:,.0f} VND**")
+            st.info(f" **Dự đoán giá đóng cửa phiên giao dịch tiếp theo cho {ticker}: {first_future_price:,.0f} VND**")
     else:
         st.error(f"Lỗi truy xuất: {error_msg}")
