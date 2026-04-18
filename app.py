@@ -80,6 +80,7 @@ def get_fundamental_data(ticker):
             "ROE": info.get('returnOnEquity', 0),
             "Nợ/Vốn chủ sở hữu (D/E)": info.get('debtToEquity', 0),
             "EPS": info.get('trailingEps', 0),
+            "Cổ tức/Thị giá (TB 5 năm)": info.get('fiveYearAvgDividendYield', 0),
         }
         return fundamentals
     except Exception:
@@ -98,12 +99,13 @@ if st.sidebar.button("Bắt đầu lấy dữ liệu & Huấn luyện"):
         fundamentals = get_fundamental_data(ticker)
         if fundamentals:
             st.write(f"**{fundamentals['Tên Công ty']}** ({fundamentals['Ngành']}) - [Website]({fundamentals['Website']})")
-            col1, col2, col3, col4, col5 = st.columns(5)
+            col1, col2, col3, col4, col5, col6 = st.columns(6)
             col1.metric("Vốn hóa thị trường (tỷ VND)", f"{fundamentals['Vốn hóa thị trường']/1e9:,.0f}")
             col2.metric("P/E (Giá/Lợi nhuận)", f"{fundamentals['P/E']:.2f}" if fundamentals['P/E'] else "N/A", help="Giá bạn trả cho mỗi đồng lợi nhuận. Càng thấp càng tốt.")
             col3.metric("P/B (Giá/Giá trị sổ sách)", f"{fundamentals['P/B']:.2f}" if fundamentals['P/B'] else "N/A", help="So sánh giá thị trường với giá trị sổ sách của công ty.")
             col4.metric("ROE (Lợi nhuận/Vốn CSH)", f"{fundamentals['ROE']*100:.2f}%" if fundamentals['ROE'] else "N/A", help="Hiệu quả sử dụng vốn của cổ đông. Càng cao càng tốt.")
             col5.metric("EPS (Lợi nhuận/Cổ phiếu)", f"{fundamentals['EPS']:,.0f}" if fundamentals['EPS'] else "N/A", help="Lợi nhuận trên mỗi cổ phiếu. Càng cao càng tốt.")
+            col6.metric("Cổ tức/Thị giá (TB 5 năm)", f"{fundamentals['Cổ tức/Thị giá (TB 5 năm)']:.2f}%" if fundamentals['Cổ tức/Thị giá (TB 5 năm)'] else "N/A", help="Tỷ suất cổ tức trung bình trong 5 năm gần nhất. Càng cao càng hấp dẫn cho đầu tư dài hạn.")
 
         st.subheader("Dữ liệu lịch sử (5 ngày gần nhất)")
         st.dataframe(df.tail(5))
