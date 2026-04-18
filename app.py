@@ -21,7 +21,7 @@ st.sidebar.header("Cấu hình hệ thống")
 ticker = st.sidebar.text_input("Mã cổ phiếu (VD: VCB, FPT, HPG):", "VCB").upper()
 lookback_days = 50
 epochs = st.sidebar.slider("Epochs (Số vòng huấn luyện):", 5, 50, 10)
-years_to_fetch = st.sidebar.slider("Số năm dữ liệu lịch sử:", 1, 5, 2)
+years_to_fetch = st.sidebar.slider("Số năm dữ liệu lịch sử:", 1, 20, 2)
 n_future_days = st.sidebar.slider("Số phiên dự đoán tiếp theo:", 1, 30, 10)
 
 @st.cache_data
@@ -62,6 +62,29 @@ def get_stock_data_yfinance(ticker, years=2):
     except Exception as e:
         return None, str(e)
 
+@st.cache_data
+def get_fundamental_data(ticker):
+    """ Lấy các chỉ số tài chính cơ bản của doanh nghiệp """
+    try:
+        yf_ticker_obj = yf.Ticker(f"{ticker}.VN")
+        info = yf_ticker_obj.info
+
+        # Trích xuất các chỉ số quan trọng, dùng .get để tránh lỗi nếu thiếu dữ liệu
+        fundamentals = {
+            "Tên Công ty": info.get('longName', 'N/A'),
+            "Ngành": info.get('industry', 'N/A'),
+            "Website": info.get('website', 'N/A'),
+            "Vốn hóa thị trường": info.get('marketCap', 0),
+            "P/E": info.get('trailingPE', 0),
+            "P/B": info.get('priceToBook', 0),
+            "ROE": info.get('returnOnEquity', 0),
+            "Nợ/Vốn chủ sở hữu (D/E)": info.get('debtToEquity', 0),
+            "EPS": info.get('trailingEps', 0),
+        }
+        return fundamentals
+    except Exception:
+        return None
+
 # --- SỰ KIỆN KHI BẤM NÚT HUẤN LUYỆN ---
 if st.sidebar.button("Bắt đầu lấy dữ liệu & Huấn luyện"):
     with st.spinner(f"Đang tải dữ liệu mã {ticker} từ Yahoo Finance..."):
@@ -69,6 +92,19 @@ if st.sidebar.button("Bắt đầu lấy dữ liệu & Huấn luyện"):
     
     if df is not None and len(df) > lookback_days:
         st.success(f"Tải thành công {len(df)} ngày giao dịch hợp lệ!")
+
+        # --- HIỂN THỊ PHÂN TÍCH CƠ BẢN ---
+        st.subheader(f"Phân tích cơ bản doanh nghiệp: {ticker}")
+        fundamentals = get_fundamental_data(ticker)
+        if fundamentals:
+            st.write(f"**{fundamentals['Tên Công ty']}** ({fundamentals['Ngành']}) - [Website]({fundamentals['Website']})")
+            col1, col2, col3, col4, col5 = st.columns(5)
+            col1.metric("Vốn hóa thị trường (tỷ VND)", f"{fundamentals['Vốn hóa thị trường']/1e9:,.0f}")
+            col2.metric("P/E (Giá/Lợi nhuận)", f"{fundamentals['P/E']:.2f}" if fundamentals['P/E'] else "N/A", help="Giá bạn trả cho mỗi đồng lợi nhuận. Càng thấp càng tốt.")
+            col3.metric("P/B (Giá/Giá trị sổ sách)", f"{fundamentals['P/B']:.2f}" if fundamentals['P/B'] else "N/A", help="So sánh giá thị trường với giá trị sổ sách của công ty.")
+            col4.metric("ROE (Lợi nhuận/Vốn CSH)", f"{fundamentals['ROE']*100:.2f}%" if fundamentals['ROE'] else "N/A", help="Hiệu quả sử dụng vốn của cổ đông. Càng cao càng tốt.")
+            col5.metric("EPS (Lợi nhuận/Cổ phiếu)", f"{fundamentals['EPS']:,.0f}" if fundamentals['EPS'] else "N/A", help="Lợi nhuận trên mỗi cổ phiếu. Càng cao càng tốt.")
+
         st.subheader("Dữ liệu lịch sử (5 ngày gần nhất)")
         st.dataframe(df.tail(5))
         
@@ -115,14 +151,9 @@ if st.sidebar.button("Bắt đầu lấy dữ liệu & Huấn luyện"):
         predictions = scaler.inverse_transform(predictions)
         
         # --- TRỰC QUAN HÓA BẰNG PLOTLY ---
-        st.subheader("Biểu đồ So sánh Giá Thực tế và Giá Dự đoán")
-        valid = df[train_len:].copy()
-        valid['Predictions'] = predictions
-        
+        # Tạo biểu đồ hiển thị dữ liệu lịch sử và dự đoán tương lai
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df['Date'][:train_len], y=df['Close'][:train_len], mode='lines', name='Dữ liệu Huấn luyện (Train)'))
-        fig.add_trace(go.Scatter(x=valid['Date'], y=valid['Close'], mode='lines', name='Giá Thực tế (Test)', line=dict(color='blue')))
-        fig.add_trace(go.Scatter(x=valid['Date'], y=valid['Predictions'], mode='lines', name='Giá Dự đoán (Predict)', line=dict(color='red')))
+        fig.add_trace(go.Scatter(x=df['Date'], y=df['Close'], mode='lines', name='Dữ liệu Lịch sử'))
         
         st.subheader(f"Bảng dự đoán {n_future_days} phiên giao dịch tiếp theo")
 
